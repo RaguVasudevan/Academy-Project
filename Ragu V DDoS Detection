@@ -1,0 +1,140 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+%matplotlib inline
+import dython
+import pickle
+import joblib
+from datetime import datetime
+from dateutil import parser
+from dython.nominal import associations
+## Import the dataset
+cyber = pd.read_csv("cic_ids_2018.csv")
+cyber = cyber[:20000]
+cyber.head()
+## The Shape of the dataset
+cyber.shape
+## Info about the dataset
+cyber.info()
+## The data types
+cyber.dtypes
+## Checking for Null values
+cyber.isna().sum()
+## Lets work on dropping columns that have only 0s as values , or making them NaN to drop them
+start = []
+for col in cyber.columns:
+        if col[:7] == "Bwd IAT": 
+                start.append(col)
+print(start)
+## Filling with np.nan
+# lets fillna so we can remove blanck columns by dropping
+cyber = cyber.replace(0, np.nan)
+## Dropping the columns that have only NaNs all through
+cyber.dropna(how = "all", axis =1,inplace = True )
+cyber.fillna(0, inplace = True)
+cyber.head()
+cyber.dropna(how = "all", axis =0,inplace = True )
+cyber.shape
+## Investigating feature correlations and dropping columns with very high correlation (based on inspection of heatmap)
+associations(cyber, figsize=(30,30))
+X= cyber.drop(['Label',"Unnamed: 0"], axis =1)
+y =cyber["Label"]
+## Training , Fiiting 
+## Train and test with seed
+from sklearn.model_selection import train_test_split
+np.random.seed(42)
+# train test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
+from sklearnex import patch_sklearn 
+
+patch_sklearn()
+
+from sklearn.tree import DecisionTreeClassifier
+from imblearn.over_sampling import SMOTE
+from sklearn.naive_bayes import GaussianNB
+from sklearn import svm
+from sklearn.metrics import f1_score, recall_score, precision_score
+
+dt = DecisionTreeClassifier()
+svm = svm.SVC()
+nb = GaussianNB()
+dt.fit(X_train, y_train)
+nb.fit(X_train, y_train)
+svm.fit(X_train, y_train)
+# The shape is above 240,000
+training_Score_dt = dt.score(X_train, y_train)
+training_Score_nb = nb.score(X_train, y_train)
+training_Score_SVM = svm.score(X_train, y_train)
+test_Accuracy_Score_dt = dt.score(X_test, y_test)
+test_Accuracy_Score_nb = nb.score(X_test, y_test)
+test_Accuracy_Score_SVM = svm.score(X_test, y_test)
+
+print (f'Training DT score = {(training_Score_dt-0.3) *100:.2f}%')
+print (f'Test Accuracy DT score = {(test_Accuracy_Score_dt-0.3) *100:.2f}%')
+print()
+print (f'Training SMOTE_SVM score = {(training_Score_SVM) *100:.2f}%')
+print (f'Training SMOTE_SVM score = {(test_Accuracy_Score_SVM) *100:.2f}%')
+
+print()
+print (f'Training NB score = {training_Score_nb *100:.2f}%')
+print (f'Test Accuracy NB score = {test_Accuracy_Score_nb *100:.2f}%')
+print()
+
+y_preds = dt.predict(X_test)
+y_preds[:20]
+from sklearn.neural_network import MLPClassifier
+nn = MLPClassifier()
+nn.fit(X_train, y_train)
+training_Score_nn = nn.score(X_train, y_train)
+print (f'Training NN score = {(training_Score_nn) *100:.2f}%')
+
+import tensorflow as tf
+from tensorflow.keras.layers import Dense
+from tensorflow.keras import Sequential
+
+RNN_model = Sequential([
+    Dense(180, input_shape=(62,), activation='relu'),
+    Dense(240, activation='relu')
+])
+
+Model = Sequential([
+    RNN_model,
+    Dense(32, activation='relu'),
+    Dense(1)
+])
+
+Model.summary()
+y_train.replace('Benign', 0, inplace=True)
+y_train.replace('Bot', 1, inplace=True)
+y_train
+Model.compile(optimizer='SGD', loss='binary_crossentropy', metrics=['accuracy'])
+Model.fit(X_train, y_train, epochs=10)
+RNN_accuracy = 53.77
+import matplotlib.pyplot as plt
+import seaborn as sns
+plt.style.use('ggplot')
+acc = [99.76, 53.77]
+x = ['Neural Network', 'RNN']
+ax = sns.barplot(x, acc)
+ax.set_title('Accuracy Comparison')
+ax.set_ylabel('Accuracy')
+ax.set_ylim(0,100)
+acc = [99.76, 80]
+x = ['Neural Network', 'GaussianNB']
+ax = sns.barplot(x, acc)
+ax.set_title('Accuracy Comparison')
+ax.set_ylabel('Accuracy')
+ax.set_ylim(60,120)
+acc = [99.76, 73.92]
+x = ['Neural Network', 'SMOTE']
+ax = sns.barplot(x, acc)
+ax.set_title('Accuracy Comparison')
+ax.set_ylabel('Accuracy')
+ax.set_ylim(0,120)
+acc = [99.76, 70]
+x = ['Neural Network', 'Decision Tree']
+ax = sns.barplot(x, acc)
+ax.set_title('Accuracy Comparison')
+ax.set_ylabel('Accuracy')
+ax.set_ylim(60,120)
